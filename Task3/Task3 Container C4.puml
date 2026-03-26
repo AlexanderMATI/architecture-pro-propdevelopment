@@ -1,0 +1,35 @@
+@startuml
+!include <C4/C4_Container>
+
+skinparam {
+    backgroundColor #FAFAFA
+    roundCorner 20
+    shadowing true
+    wrapWidth 200
+}
+
+Person(owner, "Собственник", "Владелец жилья, управляющий умными устройствами через мобильное приложение")
+System_Ext(partner_smarthome, "Система 'Умный дом' партнёра", "Внешняя система, предоставляющая API для управления домофоном и шлагбаумом")
+
+System_Boundary(c1, "Система PropDevelopment") {
+    Container(mobile_app, "Мобильное приложение", "iOS / Android", "Предоставляет собственнику интерфейс для управления услугами, включая 'Умный дом'")
+    Container(tenant_core_app, "Сервис услуг для собственников (tenant-core-app)", "Java, Spring Boot", "Основной бэкенд для мобильного приложения, обрабатывает бизнес-логику")
+    ContainerDb(tenant_core_db, "БД tenant-core", "PostgreSQL", "Хранит данные об услугах, заявках и информацию о собственниках")
+    Container(auth_service, "Сервис аутентификации (auth-service-1)", "Keycloak", "Обеспечивает аутентификацию и авторизацию собственников")
+
+    System_Boundary(c2, "Новый домен 'Умный дом'") {
+        Container(smart_home_service, "Сервис 'Умный дом' (smart-home-service)", "Java, Spring Boot", "Шлюз интеграции. Инкапсулирует логику взаимодействия с партнёрской системой 'Умный дом'")
+        ContainerDb(smart_home_db, "БД smart-home", "PostgreSQL", "Хранит информацию о привязке устройств к квартирам, правах доступа и историю событий")
+    }
+}
+
+Rel(owner, mobile_app, "Управляет доступом, просматривает события", "HTTPS")
+Rel(mobile_app, tenant_core_app, "Отправляет API-запросы на управление 'Умным домом'", "HTTPS/JSON")
+Rel(tenant_core_app, auth_service, "Проверяет токен доступа пользователя")
+Rel(tenant_core_app, tenant_core_db, "Читает/пишет данные об услугах")
+Rel(tenant_core_app, smart_home_service, "Делегирует команды для 'Умного дома' (добавить/удалить доступ, открыть дверь)", "REST/JSON")
+Rel(smart_home_service, smart_home_db, "Читает/пишет данные о привязке устройств и правах доступа", "JDBC")
+Rel(smart_home_service, partner_smarthome, "Отправляет команды управления (открыть дверь/шлагбаум)", "API (REST/JSON)")
+Rel_Back(smart_home_service, partner_smarthome, "Получает события (звонок в домофон, въезд авто)", "Webhooks")
+
+@enduml
