@@ -1,1 +1,67 @@
-[]
+[
+  {
+    "timestamp": "2026-03-31T20:30:00Z",
+    "user": "system:serviceaccount:secure-ops:monitoring",
+    "verb": "get",
+    "objectRef": {
+      "resource": "secrets",
+      "namespace": "secure-ops",
+      "name": "default-token",
+      "apiVersion": "v1"
+    },
+    "responseStatus": {
+      "code": 403,
+      "status": "Failure"
+    },
+    "type": "SECRET_ACCESS",
+    "reason": "Несанкционированный доступ к секретам"
+  },
+  {
+    "timestamp": "2026-03-31T20:30:15Z",
+    "user": "minikube-user",
+    "verb": "create",
+    "objectRef": {
+      "resource": "pods",
+      "namespace": "secure-ops",
+      "name": "privileged-pod",
+      "apiVersion": "v1"
+    },
+    "responseStatus": {
+      "code": 201
+    },
+    "type": "PRIVILEGED_POD",
+    "reason": "Создание привилегированного пода"
+  },
+  {
+    "timestamp": "2026-03-31T20:30:45Z",
+    "user": "minikube-user",
+    "verb": "create",
+    "objectRef": {
+      "resource": "rolebindings",
+      "namespace": "secure-ops",
+      "name": "escalate-binding",
+      "apiVersion": "rbac.authorization.k8s.io/v1"
+    },
+    "responseStatus": {
+      "code": 201
+    },
+    "type": "PRIVILEGE_ESCALATION",
+    "reason": "Создание RoleBinding с правами cluster-admin"
+  },
+  {
+    "timestamp": "2026-03-31T20:31:00Z",
+    "user": "admin",
+    "verb": "delete",
+    "objectRef": {
+      "resource": "configmaps",
+      "namespace": "kube-system",
+      "name": "audit-policy",
+      "apiVersion": "v1"
+    },
+    "responseStatus": {
+      "code": 200
+    },
+    "type": "AUDIT_POLICY_CHANGE",
+    "reason": "Попытка изменения/удаления политики аудита"
+  }
+]
