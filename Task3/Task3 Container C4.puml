@@ -12,24 +12,35 @@ Person(owner, "Собственник", "Владелец жилья, управ
 System_Ext(partner_smarthome, "Система 'Умный дом' партнёра", "Внешняя система, предоставляющая API для управления домофоном и шлагбаумом")
 
 System_Boundary(c1, "Система PropDevelopment") {
+
     Container(mobile_app, "Мобильное приложение", "iOS / Android", "Предоставляет собственнику интерфейс для управления услугами, включая 'Умный дом'")
-    Container(tenant_core_app, "Сервис услуг для собственников (tenant-core-app)", "Java, Spring Boot", "Основной бэкенд для мобильного приложения, обрабатывает бизнес-логику")
+    Container(rate_limiter, "Rate Limiter", "Redis / Nginx", "Ограничивает количество запросов от клиентских приложений, предотвращает DDoS")
+    Container(tenant_core_app, "Сервис услуг для собственников (tenant-core-app)", "Java, Spring Boot", "Основной бэкенд для мобильного приложения")
     ContainerDb(tenant_core_db, "БД tenant-core", "PostgreSQL", "Хранит данные об услугах, заявках и информацию о собственниках")
     Container(auth_service, "Сервис аутентификации (auth-service-1)", "Keycloak", "Обеспечивает аутентификацию и авторизацию собственников")
-
+    Container(vault, "Vault", "HashiCorp Vault", "Хранит секреты (токены, пароли, ключи API). Интегрирован с KMS")
     System_Boundary(c2, "Новый домен 'Умный дом'") {
-        Container(smart_home_service, "Сервис 'Умный дом' (smart-home-service)", "Java, Spring Boot", "Шлюз интеграции. Инкапсулирует логику взаимодействия с партнёрской системой 'Умный дом'")
+        Container(smart_home_service, "Сервис 'Умный дом' (smart-home-service)", "Java, Spring Boot", "Шлюз интеграции.")
         ContainerDb(smart_home_db, "БД smart-home", "PostgreSQL", "Хранит информацию о привязке устройств к квартирам, правах доступа и историю событий")
     }
+
+    Container(egress_gateway, "Egress Gateway", "Envoy / Istio", "Централизованный шлюз для вызова внешних сервисов")
+    Container(firewall, "Firewall", "Network Policy / Calico", "Белый список IP-адресов для входящих webhook-запросов")
 }
 
 Rel(owner, mobile_app, "Управляет доступом, просматривает события", "HTTPS")
-Rel(mobile_app, tenant_core_app, "Отправляет API-запросы на управление 'Умным домом'", "HTTPS/JSON")
+Rel(mobile_app, rate_limiter, "API-запросы", "HTTPS")
+Rel(rate_limiter, tenant_core_app, "Проксирует запросы после проверки лимитов")
 Rel(tenant_core_app, auth_service, "Проверяет токен доступа пользователя")
+Rel(tenant_core_app, vault, "Получает секреты для подключения к внешним сервисам")
 Rel(tenant_core_app, tenant_core_db, "Читает/пишет данные об услугах")
-Rel(tenant_core_app, smart_home_service, "Делегирует команды для 'Умного дома' (добавить/удалить доступ, открыть дверь)", "REST/JSON")
+Rel(tenant_core_app, smart_home_service, "Делегирует команды для 'Умного дома'", "REST/JSON")
 Rel(smart_home_service, smart_home_db, "Читает/пишет данные о привязке устройств и правах доступа", "JDBC")
-Rel(smart_home_service, partner_smarthome, "Отправляет команды управления (открыть дверь/шлагбаум)", "API (REST/JSON)")
-Rel_Back(smart_home_service, partner_smarthome, "Получает события (звонок в домофон, въезд авто)", "Webhooks")
+Rel(smart_home_service, egress_gateway, "Отправляет команды управления", "gRPC/REST")
+Rel(egress_gateway, partner_smarthome, "Проксирует запросы к внешнему API с применением политик", "REST/JSON")
+Rel_Back(firewall, smart_home_service, "Передаёт события после проверки источника IP")
+Rel_Back(partner_smarthome, firewall, "Отправляет webhook-уведомления", "HTTPS")
+System_Ext(kms, "Cloud KMS", "AWS KMS / Google Cloud KMS", "Управляет ключами шифрования для Vault")
+Rel(vault, kms, "Испльзует для автоматической распаковки (auto-unseal) и шифрования секретов")
 
 @enduml
